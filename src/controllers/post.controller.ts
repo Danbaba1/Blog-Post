@@ -1,92 +1,106 @@
 import { Request, Response } from "express";
-import {
-  getPostById,
-  getPosts,
-  createPost,
-  updatePost,
-  deletePost,
-} from "../services/posts.service";
+import { PostService } from "../services/posts.service";
 
-export class PostController {
-  constructor() {}
+export function root(req: Request, res: Response): void {
+  res.status(200).json({
+    message: "Welcome to the Post API",
+  });
+}
 
-  static root(req: Request, res: Response) {
+export function createPost(req: Request, res: Response): void {
+  try {
+    const {
+      title,
+      description,
+      createdBy,
+    }: { title: string; description: string; createdBy: string } = req.body;
+    PostService.createPost({ title, description, createdBy });
     res.status(200).json({
-      message: "Welcome to the Post API",
+      message: "Post created successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+}
+
+export function getPosts(req: Request, res: Response): void {
+  try {
+    const posts = PostService.getPosts();
+
+    res.status(200).json({
+      posts: posts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Server error",
     });
   }
+}
 
-  static createPost(req: Request, res: Response) {
-    try {
-      const {
-        title,
-        description,
-        createdBy,
-      }: { title: string; description: string; createdBy: string } = req.body;
-      createPost({ title, description, createdBy });
-      res.status(200).json({
-        message: "Post created successfully",
+export function getPostById(req: Request, res: Response): void {
+  try {
+    const { id } = req.params;
+    let post = PostService.getPostById(id);
+
+    if (!post) {
+      res.status(404).json({
+        message: "Post not found",
+        error: `No post found with id: ${id}`,
       });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
+      return;
     }
+
+    res.status(200).json({
+      message: "Post gotten successfully",
+      post: post,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Server error",
+    });
   }
+}
 
-  static getPosts(req: Request, res: Response) {
-    try {
-      const posts = getPosts();
-
-      res.status(200).json({
-        posts: posts,
+export function updatePost(req: Request, res: Response): void {
+  try {
+    const { id } = req.params;
+    const { title, description, createdBy } = req.body;
+    const existingPost = PostService.getPostById(id);
+    if (!existingPost) {
+      res.status(404).json({
+        message: "Post not found",
+        error: `No post found with id: ${id}`,
       });
-    } catch (error) {
-      res.status(500).json({
-        error: "Server error",
-      });
+      return;
     }
+    PostService.updatePost(id, { title, description, createdBy });
+    res.status(200).json({
+      message: "Post updated successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Server error",
+    });
   }
+}
 
-  static getPostById(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      let post = getPostById(id);
-      res.status(200).json({
-        message: "Post gotten successfully",
-        post: post,
+export function deletePost(req: Request, res: Response): void {
+  try {
+    const { id } = req.params;
+    const deleted = PostService.deletePost(id);
+    if (!deleted) {
+      res.status(404).json({
+        message: "Post not found",
+        error: `No post found with id: ${id}`,
       });
-    } catch (error) {
-      res.status(500).json({
-        error: "Server error",
-      });
+      return;
     }
-  }
-
-  static updatePost(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { title, description, createdBy } = req.body;
-      updatePost(id, { title, description, createdBy });
-      res.status(200).json({
-        message: "Post updated successfully",
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: "Server error",
-      });
-    }
-  }
-
-  static deletePost(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      deletePost(id);
-      res.status(200).json({
-        message: "Post deleted successfully",
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: "Server error",
-      });
-    }
+    res.status(200).json({
+      message: "Post deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Server error",
+    });
   }
 }

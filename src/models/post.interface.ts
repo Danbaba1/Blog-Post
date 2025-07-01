@@ -3,6 +3,6 @@ export interface Post {
   title: string;
   description: string;
   createdAT: Date;
-  modifiedAT: Date;
+  modifiedAT: string;
   createdBy: string;
 }
