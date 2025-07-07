@@ -1,31 +1,53 @@
 import { Request, Response } from "express";
 import { PostService } from "../services/posts.service";
+import { postSchemaValidate } from "../model/schema";
 
 export function root(req: Request, res: Response): void {
   res.status(200).json({
-    message: "Welcome to the Post API",
+    message: "Hello World!",
   });
 }
 
-export function createPost(req: Request, res: Response): void {
+export async function createPost(req: Request, res: Response): Promise<void> {
   try {
     const {
       title,
       description,
       createdBy,
     }: { title: string; description: string; createdBy: string } = req.body;
-    PostService.createPost({ title, description, createdBy });
-    res.status(200).json({
+    if (!postSchemaValidate.validate({ title, description, createdBy })) {
+      res.status(400).json({
+        error:
+          "Missing required fields: title, description, and createdBy are required",
+      });
+      return;
+    }
+    const newPost = await PostService.createPost({
+      title,
+      description,
+      createdBy,
+    });
+    res.status(201).json({
       message: "Post created successfully",
+      post: newPost,
     });
   } catch (error) {
-    res.status(500).json({ error: "Server error" });
+    console.error("Error creating post:", error);
+    res.status(500).json({
+      error: "Server error",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 }
 
-export function getPosts(req: Request, res: Response): void {
+export async function getPosts(req: Request, res: Response): Promise<void> {
   try {
-    const posts = PostService.getPosts();
+    const posts = await PostService.getPosts();
+    if (!posts) {
+      res.status(400).json({
+        message: "No posts found",
+      });
+    }
 
     res.status(200).json({
       posts: posts,
@@ -37,10 +59,10 @@ export function getPosts(req: Request, res: Response): void {
   }
 }
 
-export function getPostById(req: Request, res: Response): void {
+export async function getPostById(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    let post = PostService.getPostById(id);
+    let post = await PostService.getPostById(id);
 
     if (!post) {
       res.status(404).json({
@@ -61,7 +83,7 @@ export function getPostById(req: Request, res: Response): void {
   }
 }
 
-export function updatePost(req: Request, res: Response): void {
+export async function updatePost(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
     const { title, description, createdBy } = req.body;
@@ -73,7 +95,7 @@ export function updatePost(req: Request, res: Response): void {
       });
       return;
     }
-    PostService.updatePost(id, { title, description, createdBy });
+    await PostService.updatePost(id, { title, description, createdBy });
     res.status(200).json({
       message: "Post updated successfully",
     });
@@ -84,10 +106,10 @@ export function updatePost(req: Request, res: Response): void {
   }
 }
 
-export function deletePost(req: Request, res: Response): void {
+export async function deletePost(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const deleted = PostService.deletePost(id);
+    const deleted = await PostService.deletePost(id);
     if (!deleted) {
       res.status(404).json({
         message: "Post not found",
