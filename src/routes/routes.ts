@@ -19,7 +19,7 @@ router.get("/posts", getPosts);
 router.get("/post/:id", getPostById);
 
 // Create post
-router.post("/create/post", createPost);
+router.post("/post", createPost);
 
 // Update post (placeholder)
 router.put("/post/:id", updatePost);

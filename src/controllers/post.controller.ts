@@ -15,46 +15,63 @@ export async function createPost(req: Request, res: Response): Promise<void> {
       description,
       createdBy,
     }: { title: string; description: string; createdBy: string } = req.body;
-    if (!postSchemaValidate.validate({ title, description, createdBy })) {
+
+    if (!title || !description || !createdBy) {
       res.status(400).json({
         error:
-          "Missing required fields: title, description, and createdBy are required",
+          "Missing required fields: title, description and createdBy are required",
       });
       return;
     }
-    const newPost = await PostService.createPost({
+    const validationResult = postSchemaValidate.validate({
       title,
       description,
       createdBy,
     });
-    res.status(201).json({
-      message: "Post created successfully",
-      post: newPost,
+    if (validationResult.error) {
+      res.status(400).json({
+        error: validationResult.error.details[0].message,
+      });
+      return;
+    }
+    const result = await PostService.createPost({
+      title,
+      description,
+      createdBy,
     });
-  } catch (error) {
-    console.error("Error creating post:", error);
+    if (result.success) {
+      res.status(201).json({
+        message: "Post created successfully",
+        post: result.data,
+      });
+    } else {
+      res.status(400).json({
+        error: result.error || "Failed to create post",
+      });
+    }
+  } catch (error: any) {
     res.status(500).json({
-      error: "Server error",
-      details: error instanceof Error ? error.message : "Unknown error",
+      error: error.message || "Internal server error",
     });
   }
 }
 
 export async function getPosts(req: Request, res: Response): Promise<void> {
   try {
-    const posts = await PostService.getPosts();
-    if (!posts) {
-      res.status(400).json({
-        message: "No posts found",
+    const result = await PostService.getPosts();
+
+    if (result.success) {
+      res.status(200).json({
+        posts: result.data || [],
+      });
+    } else {
+      res.status(500).json({
+        error: result.error || "Failed to fetch posts",
       });
     }
-
-    res.status(200).json({
-      posts: posts,
-    });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({
-      error: "Server error",
+      error: error.message || "Internal server error",
     });
   }
 }
@@ -62,23 +79,18 @@ export async function getPosts(req: Request, res: Response): Promise<void> {
 export async function getPostById(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    let post = await PostService.getPostById(id);
+    const result = await PostService.getPostById(id);
 
-    if (!post) {
+    if (result.success) {
+      res.status(200).json(result.data);
+    } else {
       res.status(404).json({
-        message: "Post not found",
-        error: `No post found with id: ${id}`,
+        error: result.error || "Post not found",
       });
-      return;
     }
-
-    res.status(200).json({
-      message: "Post gotten successfully",
-      post: post,
-    });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({
-      error: "Server error",
+      error: error.message || "Internal server error",
     });
   }
 }
@@ -87,21 +99,30 @@ export async function updatePost(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
     const { title, description, createdBy } = req.body;
-    const existingPost = PostService.getPostById(id);
-    if (!existingPost) {
+    const existingPost = await PostService.getPostById(id);
+    if (!existingPost.success) {
       res.status(404).json({
         message: "Post not found",
-        error: `No post found with id: ${id}`,
+        error: existingPost.error,
       });
       return;
     }
-    await PostService.updatePost(id, { title, description, createdBy });
-    res.status(200).json({
-      message: "Post updated successfully",
+    const result = await PostService.updatePost(id, {
+      title,
+      description,
+      createdBy,
     });
-  } catch (error) {
+
+    if (result.success) {
+      res.status(200).json(result.data);
+    } else {
+      res.status(404).json({
+        error: result.error || "Post not found",
+      });
+    }
+  } catch (error: any) {
     res.status(500).json({
-      error: "Server error",
+      error: error.message || "Internal server error",
     });
   }
 }
@@ -109,20 +130,19 @@ export async function updatePost(req: Request, res: Response): Promise<void> {
 export async function deletePost(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const deleted = await PostService.deletePost(id);
-    if (!deleted) {
-      res.status(404).json({
-        message: "Post not found",
-        error: `No post found with id: ${id}`,
+    const result = await PostService.deletePost(id);
+    if (result.success && !result.error) {
+      res.status(200).json({
+        message: result.message || "Post deleted successfully",
       });
-      return;
+    } else {
+      res.status(404).json({
+        error: result.error || "Post not found",
+      });
     }
-    res.status(200).json({
-      message: "Post deleted successfully",
-    });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({
-      error: "Server error",
+      error: error.message || "Internal server error",
     });
   }
 }

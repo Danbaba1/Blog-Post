@@ -1,4 +1,5 @@
-import { Post } from "../model/schema";
+import { Post, IPosts, IPostsDocument } from "../model/schema";
+import mongoose from "mongoose";
 
 class PostService {
   private post: typeof Post;
@@ -9,103 +10,136 @@ class PostService {
     this.id = id;
   }
 
-  static async getPostById(id: string): Promise<any> {
+  static async getPostById(
+    id: string
+  ): Promise<{ success: boolean; data?: IPostsDocument; error?: string }> {
     try {
-      const post = await Post.findById({ _id: id });
-      return post;
-    } catch (error) {
-      console.error("Error reading posts:", error);
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return {
+          success: false,
+          error: "Invalid ID format",
+        };
+      }
+      const post = await Post.findById(id);
+      if (!post) {
+        return {
+          success: false,
+          error: "Post not found",
+        };
+      }
       return {
-        status: "Failed",
-        message: error,
+        success: true,
+        data: post,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
       };
     }
   }
 
-  static async getPosts(): Promise<any> {
+  static async getPosts(): Promise<{
+    success: boolean;
+    data?: IPostsDocument[];
+    error?: string;
+  }> {
     try {
       const posts = await Post.find({});
-      return posts;
-    } catch (error) {
       return {
-        status: "Failed",
-        message: error,
+        success: true,
+        data: posts,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: "Failed to retrieve posts",
       };
     }
   }
 
-  static async createPost({
-    title,
-    description,
-    createdBy,
-  }: {
-    title: string;
-    description: string;
-    createdBy: string;
-  }): Promise<any> {
-    if (!title || !description || !createdBy) {
-      throw new Error("Missing required fields please fill correctly");
+  static async createPost(
+    postData: IPosts
+  ): Promise<{ success: boolean; data?: IPostsDocument; error?: string }> {
+    if (!postData.title || !postData.description || !postData.createdBy) {
+      return {
+        success: false,
+        error: "Missing required fields please fill correctly",
+      };
     }
     try {
-      const newPost = await Post.create({ title, description, createdBy });
-      console.log("Post created successfully:", newPost);
-      return newPost;
-    } catch (error) {
-      console.error("Failed to delete post: ", error);
-      throw new Error("Failed to create post");
+      const post = await Post.create(postData);
+      return {
+        success: true,
+        data: post,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: "Failed to create post",
+      };
     }
   }
 
   static async updatePost(
     id: string,
-    {
-      title,
-      description,
-      createdBy,
-    }: { title?: string; description?: string; createdBy?: string }
-  ): Promise<any> {
+    updatedData: Partial<IPosts>
+  ): Promise<{ success: boolean; data?: IPostsDocument; error?: string }> {
     try {
-      const post = await Post.findByIdAndUpdate(
-        { _id: id },
-        { title, description, createdBy },
-        { new: true }
-      );
-
-      if (!post) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
         return {
-          status: "Failed",
-          message: "Post not available",
+          success: false,
+          error: "Invalid ID format",
+        };
+      }
+      const updatedPost = await Post.findByIdAndUpdate(id, updatedData, {
+        new: true,
+      });
+
+      if (!updatedPost) {
+        return {
+          success: false,
+          error: "Post not found",
         };
       }
       return {
-        status: "Success",
-        post: post,
+        success: true,
+        data: updatedPost,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
-        status: "Failed",
-        message: error,
+        success: false,
+        error: error.message,
       };
     }
   }
 
-  static async deletePost(id: string): Promise<any> {
+  static async deletePost(
+    id: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      const post = await Post.findByIdAndDelete({ _id: id });
-      if (!post) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
         return {
-          status: "Failed",
-          message: "Post no available",
-        };
-      } else {
-        return {
-          status: "Success",
-          message: post,
+          success: false,
+          error: "Invalid ID format",
         };
       }
-    } catch (error) {
-      console.error("Failed to delete post: ", error);
-      throw new Error("Failed to delete post");
+      const deletedPost = await Post.findByIdAndDelete({ _id: id });
+      if (!deletedPost) {
+        return {
+          success: false,
+          error: "Post not found",
+        };
+      }
+      return {
+        success: true,
+        message: "Post deleted successfully",
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 }
