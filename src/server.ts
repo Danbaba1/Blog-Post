@@ -1,10 +1,10 @@
 import app from "./app";
-import connectToDatabase from "../dbserver";
+import { config } from "./config/config";
 
 const PORT = 3000;
 
 if (process.env.NODE_ENV !== "test") {
-  connectToDatabase();
+  config.mongodb();
 
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

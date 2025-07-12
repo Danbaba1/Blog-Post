@@ -1,4 +1,5 @@
-import { Schema, model, Document } from "mongoose";
+import { Schema, model } from "mongoose";
+import { IPostsDocument } from "../types/post.types";
 import Joi from "joi";
 
 export const postSchemaValidate = Joi.object({
@@ -6,17 +7,6 @@ export const postSchemaValidate = Joi.object({
   description: Joi.string().required(),
   createdBy: Joi.string().required(),
 });
-
-export interface IPosts {
-  title: string;
-  description: string;
-  createdBy: string;
-}
-
-export interface IPostsDocument extends IPosts, Document {
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 const postsSchema = new Schema(
   {

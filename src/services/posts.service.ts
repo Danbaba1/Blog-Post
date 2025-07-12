@@ -1,4 +1,5 @@
-import { Post, IPosts, IPostsDocument } from "../model/schema";
+import { Post } from "../model/post.model";
+import { IPosts, IPostsDocument } from "../types/post.types";
 import mongoose from "mongoose";
 
 class PostService {

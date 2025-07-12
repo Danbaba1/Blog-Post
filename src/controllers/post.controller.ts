@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { PostService } from "../services/posts.service";
-import { postSchemaValidate } from "../model/schema";
+import { postSchemaValidate } from "../model/post.model";
 
 export function root(req: Request, res: Response): void {
   res.status(200).json({
