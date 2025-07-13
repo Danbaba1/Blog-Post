@@ -9,6 +9,17 @@ export interface IUser {
   verificationToken?: string;
   verificationTokenExpires?: Date;
   emailVerificationFailed?: boolean;
+  isAuthor?: boolean;
+  bio?: string;
+  profilePicture?: string;
+  socialLinks?: {
+    X?: string;
+    linkedin?: string;
+    website?: string;
+  };
+  authorSince?: Date;
+  followerCount?: number;
+  followingCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

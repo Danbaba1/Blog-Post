@@ -19,8 +19,33 @@ const postsSchema = new Schema(
       required: true,
     },
     createdBy: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "User",
       required: true,
+    },
+    isPublished: {
+      type: Boolean,
+      default: false,
+    },
+    isDraft: {
+      type: Boolean,
+      default: true,
+    },
+    publishedAt: {
+      type: Date,
+    },
+    tags: [
+      {
+        type: String,
+      },
+    ],
+    likes: {
+      type: Number,
+      default: 0,
+    },
+    views: {
+      type: Number,
+      default: 0,
     },
   },
   {

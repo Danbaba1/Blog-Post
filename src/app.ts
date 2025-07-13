@@ -15,7 +15,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Use the router
-app.use("/", postRoute);
+
 app.use("/user", userRoute);
+app.use("/", postRoute);
 
 export default app;

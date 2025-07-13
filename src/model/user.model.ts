@@ -32,6 +32,33 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    isAuthor: {
+      type: Boolean,
+      default: false,
+    },
+    bio: {
+      type: String,
+      maxlength: 500,
+    },
+    profilePicture: {
+      type: String,
+    },
+    socialLinks: {
+      X: String,
+      linkedin: String,
+      website: String,
+    },
+    authorSince: {
+      type: Date,
+    },
+    followerCount: {
+      type: Number,
+      default: 0,
+    },
+    followingCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

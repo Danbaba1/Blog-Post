@@ -221,4 +221,45 @@ export class UserService {
 
     return user;
   }
+
+  static async getAllUsers() {
+    try {
+      const users = await User.find({})
+        .select("name email isVerified createdAt")
+        .sort({ createdAt: -1 });
+
+      return users;
+    } catch (error) {
+      throw createCustomError("Failed to retrieve users", 500);
+    }
+  }
+
+  static async getAuthors() {
+    try {
+      const authors = await User.find({ isAuthor: true })
+        .select("name email isAuthor authorSince createdAt")
+        .sort({ authorSince: -1 });
+
+      return authors;
+    } catch (error) {
+      throw createCustomError("Failed to retrieve authors", 500);
+    }
+  }
+
+  static async getUserStats() {
+    try {
+      const totalUsers = await User.countDocuments({});
+      const totalAuthors = await User.countDocuments({ isAuthor: true });
+      const verifiedUsers = await User.countDocuments({ isVerified: true });
+
+      return {
+        totalUsers,
+        totalAuthors,
+        verifiedUsers,
+        regularUsers: totalUsers - totalAuthors,
+      };
+    } catch (error) {
+      throw createCustomError("Failed to retrieve user statistics", 500);
+    }
+  }
 }

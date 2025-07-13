@@ -149,4 +149,62 @@ export class UserController {
       }
     }
   }
+
+  static async getUsers(req: Request, res: Response): Promise<void> {
+    try {
+      const { authors } = req.query;
+      const authorsOnly = authors === "true";
+
+      const users = authorsOnly
+        ? await UserService.getAuthors()
+        : await UserService.getAllUsers();
+
+      res.json({
+        status: "success",
+        data: {
+          users,
+          total: users.length,
+        },
+      });
+    } catch (error: any) {
+      console.error("Get users error:", error);
+
+      if (error.statusCode) {
+        res.status(error.statusCode).json({
+          status: "error",
+          message: error.message,
+        });
+      } else {
+        res.status(500).json({
+          status: "error",
+          message: "Internal server error",
+        });
+      }
+    }
+  }
+
+  static async getUserStats(req: Request, res: Response): Promise<void> {
+    try {
+      const stats = await UserService.getUserStats();
+
+      res.json({
+        status: "success",
+        data: stats,
+      });
+    } catch (error: any) {
+      console.error("Get user stats error:", error);
+
+      if (error.statusCode) {
+        res.status(error.statusCode).json({
+          status: "error",
+          message: error.message,
+        });
+      } else {
+        res.status(500).json({
+          status: "error",
+          message: "Internal server error",
+        });
+      }
+    }
+  }
 }

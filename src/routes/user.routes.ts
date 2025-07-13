@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { UserController } from "../controllers/user.controller";
 import { validateRequest } from "../middleware/validate";
+import { authenticateToken } from "../middleware/auth";
 import {
   signupSchema,
   loginSchema,
@@ -27,5 +28,8 @@ router.post(
   validateRequest(resetPasswordSchema),
   UserController.resetPassword
 );
+
+router.get("/users", authenticateToken, UserController.getUsers);
+router.get("/users/stats", authenticateToken, UserController.getUserStats);
 
 export default router;
