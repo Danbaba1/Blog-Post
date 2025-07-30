@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import postRoute from "./routes/post.routes";
 import userRoute from "./routes/user.routes";
+import profileRoute from "./routes/profile.routes";
 
 const app: Express = express();
 
@@ -18,5 +19,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/user", userRoute);
 app.use("/", postRoute);
+app.use("/", profileRoute);
 
 export default app;

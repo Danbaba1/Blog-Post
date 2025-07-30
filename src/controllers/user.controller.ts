@@ -2,6 +2,12 @@ import { Request, Response } from "express";
 import { IUserInput } from "../types/user.types";
 import { UserService } from "../services/user.service";
 
+interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: string;
+  };
+}
+
 export class UserController {
   // User signup method
   static async signup(req: Request, res: Response): Promise<void> {

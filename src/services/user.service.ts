@@ -133,6 +133,14 @@ export class UserService {
         id: user._id,
         name: user.name,
         email: user.email,
+        isaAuthor: user.isAuthor || false,
+        hasProfile: !!(
+          user.bio ||
+          user.profilePicture ||
+          user.socialLinks?.X ||
+          user.socialLinks?.linkedin ||
+          user.socialLinks?.website
+        ),
       },
     };
   }

@@ -14,14 +14,8 @@ export const authenticateToken = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Debug logging
-  console.log("🔍 Auth middleware called");
-  console.log("🔍 Authorization header:", req.headers.authorization);
-
   const authHeader = req.headers.authorization;
   const token = authHeader?.split(" ")[1];
-
-  console.log("🔍 Extracted token:", token);
 
   if (!token) {
     console.log("❌ No token found");
@@ -30,19 +24,12 @@ export const authenticateToken = (
   }
 
   try {
-    console.log(
-      "🔍 Verifying token with secret:",
-      config.jwt.secret ? "Secret exists" : "No secret"
-    );
     const decoded = jwt.verify(token, config.jwt.secret) as { userId: string };
-    console.log("✅ Token decoded successfully:", decoded);
 
     req.userId = decoded.userId;
     req.user = { userId: decoded.userId };
-    console.log("✅ User ID set on request:", req.userId);
     next();
   } catch (error) {
-    console.log("❌ Token verification failed:", error);
     res.status(403).json({ message: "Invalid or expired token" });
     return;
   }

@@ -1,6 +1,10 @@
 import { Post } from "../model/post.model";
 import { User } from "../model/user.model";
-import { IPosts, IPostsDocument } from "../types/post.types";
+import {
+  IPosts,
+  IPostsDocument,
+  IPostWithUserDetails,
+} from "../types/post.types";
 import {
   PaginationOptions,
   PaginatedResponse,
@@ -9,9 +13,48 @@ import { PaginationUtils } from "../utils/pagination.utils";
 import mongoose from "mongoose";
 
 class PostService {
-  static async getPostById(
-    id: string
-  ): Promise<{ success: boolean; data?: IPostsDocument; error?: string }> {
+  // Helper method to create user lookup pipeline with proper default values
+  private static getUserLookupPipeline() {
+    return {
+      $lookup: {
+        from: "users",
+        let: { authorId: "$createdBy" },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ["$_id", "$$authorId"] },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              email: 1,
+              // Use $ifNull to provide default values for missing fields
+              isAuthor: { $ifNull: ["$isAuthor", false] },
+              bio: { $ifNull: ["$bio", null] },
+              profilePicture: { $ifNull: ["$profilePicture", null] },
+              socialLinks: {
+                X: { $ifNull: ["$socialLinks.X", null] },
+                linkedin: { $ifNull: ["$socialLinks.linkedin", null] },
+                website: { $ifNull: ["$socialLinks.website", null] },
+              },
+              authorSince: { $ifNull: ["$authorSince", null] },
+              followerCount: { $ifNull: ["$followerCount", 0] },
+              followingCount: { $ifNull: ["$followingCount", 0] },
+            },
+          },
+        ],
+        as: "createdBy",
+      },
+    };
+  }
+
+  static async getPostById(id: string): Promise<{
+    success: boolean;
+    data?: IPostWithUserDetails;
+    error?: string;
+  }> {
     try {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return {
@@ -19,19 +62,29 @@ class PostService {
           error: "Invalid ID format",
         };
       }
-      const post = await Post.findById(id).populate(
-        "createdBy",
-        "name email isAuthor"
-      );
-      if (!post) {
+
+      const post = await Post.aggregate([
+        {
+          $match: {
+            _id: new mongoose.Types.ObjectId(id),
+          },
+        },
+        PostService.getUserLookupPipeline(),
+        {
+          $unwind: "$createdBy",
+        },
+      ]);
+
+      if (!post || post.length === 0) {
         return {
           success: false,
           error: "Post not found",
         };
       }
+
       return {
         success: true,
-        data: post,
+        data: post[0],
       };
     } catch (error: any) {
       return {
@@ -67,12 +120,16 @@ class PostService {
         isDraft: true,
       });
 
+      // Update user to be an author if they aren't already
       if (!user.isAuthor) {
         await User.findByIdAndUpdate(userId, {
-          isAuthor: true,
-          authorSince: new Date(),
+          $set: {
+            isAuthor: true,
+            authorSince: new Date(),
+          },
         });
       }
+
       return {
         success: true,
         data: post,
@@ -88,7 +145,11 @@ class PostService {
   static async publishPost(
     postId: string,
     userId: string
-  ): Promise<{ success: boolean; data?: IPostsDocument; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    data?: IPostWithUserDetails;
+    error?: string;
+  }> {
     try {
       if (!mongoose.Types.ObjectId.isValid(postId)) {
         return {
@@ -105,25 +166,37 @@ class PostService {
         };
       }
 
-      const publishedPost = await Post.findByIdAndUpdate(
-        postId,
-        {
+      await Post.findByIdAndUpdate(postId, {
+        $set: {
           isPublished: true,
           isDraft: false,
           publishedAt: new Date(),
         },
-        { new: true }
-      ).populate("createdBy", "name email isAuthor");
+      });
 
-      if (!publishedPost) {
+      // Get the updated post with full user details using aggregation
+      const publishedPost = await Post.aggregate([
+        {
+          $match: {
+            _id: new mongoose.Types.ObjectId(postId),
+          },
+        },
+        PostService.getUserLookupPipeline(),
+        {
+          $unwind: "$createdBy",
+        },
+      ]);
+
+      if (!publishedPost || publishedPost.length === 0) {
         return {
           success: false,
           error: "Failed to publish post",
         };
       }
+
       return {
         success: true,
-        data: publishedPost,
+        data: publishedPost[0],
       };
     } catch (error: any) {
       return {
@@ -136,7 +209,11 @@ class PostService {
   static async unpublishPost(
     postId: string,
     userId: string
-  ): Promise<{ success: boolean; data?: IPostsDocument; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    data?: IPostWithUserDetails;
+    error?: string;
+  }> {
     try {
       if (!mongoose.Types.ObjectId.isValid(postId)) {
         return {
@@ -153,25 +230,39 @@ class PostService {
         };
       }
 
-      const unpublishedPost = await Post.findByIdAndUpdate(
-        postId,
-        {
+      await Post.findByIdAndUpdate(postId, {
+        $set: {
           isPublished: false,
           isDraft: true,
-          publishedAt: undefined,
         },
-        { new: true }
-      ).populate("createdBy", "name email isAuthor");
+        $unset: {
+          publishedAt: 1,
+        },
+      });
 
-      if (!unpublishedPost) {
+      // Get the updated post with full user details using aggregation
+      const unpublishedPost = await Post.aggregate([
+        {
+          $match: {
+            _id: new mongoose.Types.ObjectId(postId),
+          },
+        },
+        PostService.getUserLookupPipeline(),
+        {
+          $unwind: "$createdBy",
+        },
+      ]);
+
+      if (!unpublishedPost || unpublishedPost.length === 0) {
         return {
           success: false,
           error: "Failed to unpublish post",
         };
       }
+
       return {
         success: true,
-        data: unpublishedPost,
+        data: unpublishedPost[0],
       };
     } catch (error: any) {
       return {
@@ -185,7 +276,11 @@ class PostService {
     id: string,
     updatedData: Partial<IPosts>,
     userId: string
-  ): Promise<{ success: boolean; data?: IPostsDocument; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    data?: IPostWithUserDetails;
+    error?: string;
+  }> {
     try {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return {
@@ -200,19 +295,32 @@ class PostService {
           error: "Post not found or you don't have permission to update it",
         };
       }
-      const updatedPost = await Post.findByIdAndUpdate(id, updatedData, {
-        new: true,
-      }).populate("createdBy", "name email isAuthor");
 
-      if (!updatedPost) {
+      await Post.findByIdAndUpdate(id, { $set: updatedData });
+
+      // Get the updated post with full user details using aggregation
+      const updatedPost = await Post.aggregate([
+        {
+          $match: {
+            _id: new mongoose.Types.ObjectId(id),
+          },
+        },
+        PostService.getUserLookupPipeline(),
+        {
+          $unwind: "$createdBy",
+        },
+      ]);
+
+      if (!updatedPost || updatedPost.length === 0) {
         return {
           success: false,
           error: "Post not found",
         };
       }
+
       return {
         success: true,
-        data: updatedPost,
+        data: updatedPost[0],
       };
     } catch (error: any) {
       return {
@@ -262,22 +370,44 @@ class PostService {
   static async getPaginatedPosts(
     paginationOptions: PaginationOptions,
     publishedOnly: boolean = false
-  ): Promise<PaginatedResponse<any>> {
+  ): Promise<PaginatedResponse<IPostWithUserDetails>> {
     try {
       const { page, limit, skip } = paginationOptions;
 
-      const filter = publishedOnly ? { isPublished: true } : {};
+      // Build match condition
+      const matchCondition: any = {};
+      if (publishedOnly) {
+        matchCondition.isPublished = true;
+      }
 
-      console.log("Filter:", filter);
+      console.log("Filter:", matchCondition);
       console.log("Pagination options:", paginationOptions);
 
-      const posts = await Post.find(filter)
-        .populate("createdBy", "name email")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean();
-      const totalItems = await Post.countDocuments(filter);
+      const pipeline: mongoose.PipelineStage[] = [
+        {
+          $match: matchCondition,
+        },
+        PostService.getUserLookupPipeline(),
+        {
+          $unwind: "$createdBy",
+        },
+        {
+          $sort: { createdAt: -1 },
+        },
+      ];
+
+      // Get total count
+      const totalCountPipeline: mongoose.PipelineStage[] = [...pipeline];
+      totalCountPipeline.push({ $count: "total" });
+      const totalResult = await Post.aggregate(totalCountPipeline);
+      const totalItems = totalResult.length > 0 ? totalResult[0].total : 0;
+
+      // Add pagination
+      pipeline.push({ $skip: skip });
+      pipeline.push({ $limit: limit });
+
+      const posts = await Post.aggregate(pipeline);
+
       return PaginationUtils.createPaginationResponse(
         posts,
         totalItems,
@@ -297,22 +427,42 @@ class PostService {
     userId: string,
     paginationOptions: PaginationOptions,
     publishedOnly: boolean = false
-  ): Promise<PaginatedResponse<any>> {
+  ): Promise<PaginatedResponse<IPostWithUserDetails>> {
     try {
       const { page, limit, skip } = paginationOptions;
-      const filter: any = { createdBy: userId };
+
+      // Build match condition
+      const matchCondition: any = {
+        createdBy: new mongoose.Types.ObjectId(userId),
+      };
       if (publishedOnly) {
-        filter.isPublished = true;
+        matchCondition.isPublished = true;
       }
 
-      const posts = await Post.find(filter)
-        .populate("createdBy", "name email")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean();
+      const pipeline: mongoose.PipelineStage[] = [
+        {
+          $match: matchCondition,
+        },
+        PostService.getUserLookupPipeline(),
+        {
+          $unwind: "$createdBy",
+        },
+        {
+          $sort: { createdAt: -1 },
+        },
+      ];
 
-      const totalItems = await Post.countDocuments(filter);
+      // Get total count
+      const totalCountPipeline: mongoose.PipelineStage[] = [...pipeline];
+      totalCountPipeline.push({ $count: "total" });
+      const totalResult = await Post.aggregate(totalCountPipeline);
+      const totalItems = totalResult.length > 0 ? totalResult[0].total : 0;
+
+      // Add pagination
+      pipeline.push({ $skip: skip });
+      pipeline.push({ $limit: limit });
+
+      const posts = await Post.aggregate(pipeline);
 
       return PaginationUtils.createPaginationResponse(
         posts,
@@ -333,26 +483,52 @@ class PostService {
     searchQuery: string,
     paginationOptions: PaginationOptions,
     publishedOnly: boolean = true
-  ): Promise<PaginatedResponse<any>> {
+  ): Promise<PaginatedResponse<IPostWithUserDetails>> {
     try {
       const { page, limit, skip } = paginationOptions;
-      const filter: any = {
-        $or: [
-          { title: { $regex: searchQuery, $options: "i" } },
-          { description: { $regex: searchQuery, $options: "i" } },
-          { tags: { $in: [new RegExp(searchQuery, "i")] } },
+
+      // Build match condition with search
+      const matchCondition: any = {
+        $and: [
+          {
+            $or: [
+              { title: { $regex: searchQuery, $options: "i" } },
+              { description: { $regex: searchQuery, $options: "i" } },
+              { tags: { $in: [new RegExp(searchQuery, "i")] } },
+            ],
+          },
         ],
       };
+
       if (publishedOnly) {
-        filter.isPublished = true;
+        matchCondition.$and.push({ isPublished: true });
       }
-      const posts = await Post.find(filter)
-        .populate("createdBy", "name email")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean();
-      const totalItems = await Post.countDocuments(filter);
+
+      const pipeline: mongoose.PipelineStage[] = [
+        {
+          $match: matchCondition,
+        },
+        PostService.getUserLookupPipeline(),
+        {
+          $unwind: "$createdBy",
+        },
+        {
+          $sort: { createdAt: -1 },
+        },
+      ];
+
+      // Get total count
+      const totalCountPipeline: mongoose.PipelineStage[] = [...pipeline];
+      totalCountPipeline.push({ $count: "total" });
+      const totalResult = await Post.aggregate(totalCountPipeline);
+      const totalItems = totalResult.length > 0 ? totalResult[0].total : 0;
+
+      // Add pagination
+      pipeline.push({ $skip: skip });
+      pipeline.push({ $limit: limit });
+
+      const posts = await Post.aggregate(pipeline);
+
       return PaginationUtils.createPaginationResponse(
         posts,
         totalItems,

@@ -8,7 +8,6 @@ import {
   resetPasswordSchema,
   forgotPasswordSchema,
 } from "../validators/user.validator";
-
 /**
  * Initializes a new Router instance.
  * This router will be used to define user-related routes.
